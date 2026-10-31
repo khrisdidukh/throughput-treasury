@@ -63,6 +63,11 @@ header.top { display: flex; justify-content: space-between; align-items: center;
 .flow-key .k-a { background: var(--note); }
 .flow-key .k-d { background: var(--drum); box-shadow: none; }
 .why { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; max-width: 78ch; font-size: 15px; }
+.adizes { margin-top: 22px; max-width: 78ch; font-size: 15px; }
+.adizes:empty { display: none; }
+.adizes h3 { margin: 0 0 6px; font-size: 17px; }
+.adizes p { margin: 0 0 6px; }
+.adizes ul { margin: 0; padding-left: 18px; color: #2b3a41; }
 .cycle { margin-top: 22px; max-width: 78ch; font-size: 15px; padding: 12px 16px; border-left: 4px solid var(--green); background: var(--green-wash); border-radius: 0 4px 4px 0; }
 .cycle:empty { display: none; }
 .cycle p { margin: 0; }
@@ -165,6 +170,7 @@ footer { padding: 30px 0 50px; border-top: 1px solid var(--rule); font-size: 13.
     <div class="flow" id="flow" aria-label="Where lead time goes"></div>
     <div class="flow-key"><span><i class="k-q"></i>waiting</span><span><i class="k-a"></i>being worked on</span><span><i class="k-d"></i>the constraint</span><span id="flow-src"></span></div>
     <ul class="why" id="why"></ul>
+    <div class="adizes" id="adizes"></div>
     <div class="cycle" id="cycle" aria-live="polite"></div>
   </div>
 

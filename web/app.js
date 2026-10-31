@@ -62,6 +62,11 @@ async function renderFlow() {
   $('#flow-src').textContent = `Lead time of delivered work, ${s.source}`;
   const k = s.flow.constraints.find((x) => x.waitIn === c) || s.flow.constraints[0];
   $('#why').innerHTML = k.evidence.slice(0, 4).map((e) => `<li>${esc(e[0].toUpperCase() + e.slice(1))}.</li>`).join('');
+  const a = s.flow.adizes;
+  const ROLE = { P: 'Producer: someone who gets the work done', A: 'Administrator: someone who keeps order and process', E: 'Entrepreneur: someone who decides what to start and what to drop', I: 'Integrator: someone who keeps people working together' };
+  $('#adizes').innerHTML = a ? `<h3>Why the work waits: the Adizes view</h3>
+    <p>Every business needs four roles: Producer, Administrator, Entrepreneur and Integrator. At this bottleneck the missing one is the <b>${esc(ROLE[a.missingRole] || a.missingRole)}</b>. The fix is a decision, not a hire: ${esc((a.meaning.split('. ').slice(1).join('. ') || a.meaning).replace(/^./, (x) => x.toLowerCase()))}</p>
+    <ul>${a.evidence.slice(0, 3).map((e) => `<li>${esc(e[0].toUpperCase() + e.slice(1))}.</li>`).join('')}</ul>` : '';
   const desk = document.querySelector('.preset[data-role="desk"]');
   if (desk) {
     const p = JSON.parse(desk.dataset.p);
