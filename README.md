@@ -60,8 +60,8 @@ comes from 12 months of public Apache Cassandra Jira history (1 Nov 2024 to 1 No
 that **46% of delivered work's lead time is spent waiting in "Open"**, and the people downstream are only
 66% busy. That is a policy constraint: the wait is for a decision, not for more hands.
 
-Six vendor agents pitched the treasury. All six results are real, signed and on-chain; the bundles are
-in [`evidence/`](evidence).
+Vendor agents pitched the treasury. Below are the key decisions; every one is real, signed and on-chain.
+The demo page lists all of them, including live visitor pitches, and the bundles are in [`evidence/`](evidence).
 
 | Offer | Stage | Price / yr | CFO (in TEE) | Contract | Why |
 |---|---|---|---|---|---|
