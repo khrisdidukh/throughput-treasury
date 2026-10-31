@@ -49,7 +49,7 @@ const safe = (s: string) => /^[a-z0-9-]{1,64}$/.test(s);
 http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x');
   const p = url.pathname;
-  if (p === '/api/config') return send(res, 200, JSON.stringify({ contract: CONTRACT, rpc: 'https://rpc.testnet.near.org', canReview, stages: STAGES, busy: running }));
+  if (p === '/api/config') return send(res, 200, JSON.stringify({ contract: CONTRACT, rpc: 'https://rpc.testnet.fastnear.com', canReview, stages: STAGES, busy: running }));
   let m = p.match(/^\/api\/evidence\/([a-z0-9-]+)\/(request|response|signature)\.json$/);
   if (m && safe(m[1])) return file(res, path.join(ROOT, 'evidence', m[1], `${m[2]}.json`));
   m = p.match(/^\/api\/snapshot\/([0-9a-f]{64})$/);

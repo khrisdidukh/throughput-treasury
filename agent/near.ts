@@ -2,7 +2,7 @@ import { Account, JsonRpcProvider, KeyPairSigner } from 'near-api-js';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const RPC = process.env.NEAR_RPC || 'https://rpc.testnet.near.org';
+export const RPC = process.env.NEAR_RPC || 'https://rpc.testnet.fastnear.com';
 export const provider = new JsonRpcProvider({ url: RPC });
 const KEYS = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'keys');
 
