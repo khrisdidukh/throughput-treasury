@@ -169,7 +169,7 @@ footer { padding: 30px 0 50px; border-top: 1px solid var(--rule); font-size: 13.
     <div class="steps">
       <div class="step"><h3>The engine finds the constraint</h3><p>A Theory of Constraints engine reads the workflow history and prices every open offer: real value (more delivered per week) versus paper value (hours freed where nothing was waiting). The snapshot's hash is committed on-chain.</p></div>
       <div class="step"><h3>The CFO judges, inside a TEE</h3><p>The model runs in an Intel TDX enclave on NEAR AI Cloud and signs its verdict with a key that never leaves it. Offer text is data, never an instruction: the contract fixes the prompt byte for byte.</p></div>
-      <div class="step"><h3>The contract enforces and pays</h3><p>It checks the signature and the exact snapshot, then applies hard rules the AI cannot override: the offer must target the constraint, return at least 3× its price, and fit the weekly cap.</p></div>
+      <div class="step"><h3>The contract enforces and pays</h3><p>It checks the signature and the exact snapshot, then applies hard rules the AI cannot override: the offer must target the constraint, the CFO may not claim more value than the engine computed, the engine's number must be at least 3× the price, and the weekly cap must hold.</p></div>
     </div>
   </section>
 

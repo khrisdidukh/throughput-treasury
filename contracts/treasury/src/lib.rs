@@ -136,6 +136,33 @@ struct Answer {
     reason: String,
 }
 
+/// The parts of the committed engine snapshot the contract reads itself (the snapshot is hash-pinned on-chain).
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+struct EngineConstraint {
+    stage: String,
+}
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+struct EngineEstimate {
+    offer: String,
+    #[serde(default)]
+    touches_constraint: bool,
+    real_value_per_year_eur: f64,
+    #[serde(default)]
+    paper_value_per_year_eur: f64,
+}
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+struct EngineSnapshot {
+    constraint: Option<EngineConstraint>,
+    #[serde(default)]
+    offer_estimates: Vec<EngineEstimate>,
+}
+
+/// The CFO may round or understate, but may not claim more value than the engine computed.
+pub const CLAIM_TOLERANCE_PCT: f64 = 10.0;
+
 fn json_str(s: &str) -> String {
     serde_json::to_string(s).unwrap()
 }
@@ -272,8 +299,14 @@ impl Contract {
             self.week = week;
             self.spent_this_week = 0;
         }
-        let real = a.real_value_per_year_eur.max(0.0) as u64;
-        let paper = a.paper_value_per_year_eur.max(0.0) as u64;
+        // the engine's own numbers for this offer, read from the hash-verified snapshot
+        let engine: EngineSnapshot = serde_json::from_str(&snapshot_json).unwrap_or_else(|_| env::panic_str("snapshot is not valid engine JSON"));
+        if let Some(ec) = &engine.constraint {
+            require!(ec.stage == snap.constraint_stage, "snapshot constraint differs from the committed constraint");
+        }
+        let est = engine.offer_estimates.iter().find(|e| e.offer == offer.id);
+        let real = est.map(|e| e.real_value_per_year_eur).unwrap_or(a.real_value_per_year_eur).max(0.0) as u64;
+        let paper = est.map(|e| e.paper_value_per_year_eur).unwrap_or(a.paper_value_per_year_eur).max(0.0) as u64;
         let cost_per_year = offer.price_eur_per_week as u128 * 52;
         let pay = offer.pay_per_week.0;
         let (outcome, reason) = if a.decision == "REJECT" {
@@ -282,8 +315,14 @@ impl Contract {
             ("BLOCKED_BY_POLICY".into(), format!("offer targets '{}' but the committed constraint is '{}': spending there does not raise throughput", offer.stage, snap.constraint_stage))
         } else if !a.targets_constraint || a.constraint_stage != snap.constraint_stage {
             ("BLOCKED_BY_POLICY".into(), "the review does not agree with the committed constraint".into())
+        } else if est.is_none() {
+            ("BLOCKED_BY_POLICY".into(), "the engine has not priced this offer in the committed snapshot".into())
+        } else if !est.unwrap().touches_constraint {
+            ("BLOCKED_BY_POLICY".into(), "the engine says this offer does not touch the constraint".into())
+        } else if a.real_value_per_year_eur > est.unwrap().real_value_per_year_eur.max(0.0) * (1.0 + CLAIM_TOLERANCE_PCT / 100.0) + 1000.0 {
+            ("BLOCKED_BY_POLICY".into(), format!("the CFO claims {} EUR/yr but the engine computed {} EUR/yr: overstated value is not paid", a.real_value_per_year_eur as i64, est.unwrap().real_value_per_year_eur as i64))
         } else if (real as u128) * 100 < cost_per_year * self.policy.min_roi_x100 as u128 {
-            ("BLOCKED_BY_POLICY".into(), format!("real value {} EUR/yr is below {}x the price of {} EUR/yr", real, self.policy.min_roi_x100 as f64 / 100.0, cost_per_year))
+            ("BLOCKED_BY_POLICY".into(), format!("real value {} EUR/yr (engine) is below {}x the price of {} EUR/yr", real, self.policy.min_roi_x100 as f64 / 100.0, cost_per_year))
         } else if self.spent_this_week + pay > self.policy.max_spend_per_week.0 {
             ("BLOCKED_BY_POLICY".into(), "weekly spending cap reached".into())
         } else if env::account_balance().as_yoctonear() < pay + NearToken::from_near(1).as_yoctonear() {

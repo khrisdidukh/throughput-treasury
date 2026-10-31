@@ -19,6 +19,9 @@ independent layers agree:
    the on-chain prompt plus the committed snapshot (byte-exact, hash-matched). Then it applies hard rules
    the AI cannot override:
    - the offer must target the constraint;
+   - the engine must agree the offer touches the constraint;
+   - the CFO may not claim more value than the engine computed. The contract reads the engine's own
+     per-offer estimate from the hash-verified snapshot, and pays on that number, not the AI's;
    - its real value must be at least 3× its price;
    - it must fit the weekly spending cap and the balance.
 
@@ -81,7 +84,7 @@ The CFO said no four times, the contract overruled one CFO "yes", and money move
 | The verdict came from the TEE model, unchanged | the contract (`env::ed25519_verify` + `env::sha256` over the exact bytes) |
 | The CFO got the strict CFO prompt for *this* offer, with no extra instructions | the contract: byte-exact prefix and suffix built on-chain from the stored offer |
 | The CFO saw the committed flow snapshot and nothing else | the contract: the only free item must be one JSON string whose sha256 equals the committed snapshot hash |
-| The money rules hold even if the AI is fooled | the contract: constraint stage, 3× minimum return, weekly cap, balance |
+| The money rules hold even if the AI is fooled | the contract: constraint stage, the engine's own estimate read from the snapshot (an overstated AI figure is blocked), 3× minimum return on the engine's number, weekly cap, balance |
 | The signing key lives in a genuine, up-to-date Intel TDX enclave | `tools/attest.py`: DCAP quote verification (`dcap-qvl`), TCB `UpToDate`, `report_data = signing key ‖ fresh nonce`; the owner registers the key together with the quote hash |
 | Any past decision | anyone, offline (`npm test`) or in the browser on the demo page; both also confirm that a flipped decision fails the signature |
 
@@ -90,7 +93,7 @@ The CFO said no four times, the contract overruled one CFO "yes", and money move
 | Path | What |
 |---|---|
 | `contracts/treasury` | Rust contract (near-sdk 5.5): treasury, offers, snapshot commitment, TEE verdict verification, hard money rules |
-| `contracts/treasury-tests` | 9 tests: fund at constraint, policy blocks an AI "yes" off-constraint, low return, AI rejection, fake snapshot, injected text, forged verdict, double payment, weekly cap |
+| `contracts/treasury-tests` | 12 tests: fund at constraint, policy blocks an AI "yes" off-constraint, low return, CFO overstating the engine's value, engine numbers recorded, unpriced offer, AI rejection, fake snapshot, injected text, forged verdict, double payment, weekly cap |
 | `engine/` | Theory of Constraints flow engine (TypeScript): constraints, real vs paper value, scenario simulation; Jira import |
 | `agent/` | The business's agents: `snapshot.ts` (engine → committed snapshot), `review.ts` (CFO review in the TEE → on-chain execution), `post-offer.ts` (a vendor agent pitches), `verify.ts` (offline proof check), `deploy.ts` |
 | `web/` | Demo page and server: reads the chain from NEAR RPC, verifies proofs in the browser, runs live reviews of visitor offers |
@@ -153,8 +156,6 @@ Data: public Apache Cassandra Jira history. Code was written with AI assistance 
 - The engine's estimates are a model (queueing and flow assumptions are stated in the snapshot). The
   contract does not re-run the engine; it pins the exact snapshot the CFO saw, so anyone can re-run it
   from the snapshot and challenge it.
-- The CFO's real-value figure is taken from its signed answer and checked against the hard rules. A future
-  version should also cross-check it against the snapshot's per-offer estimate on-chain.
 - The TEE key is registered by the owner after an off-chain DCAP check. Verifying the TDX quote inside the
   contract is planned.
 - Payments are native NEAR on testnet. Paying vendors in their preferred asset across chains would use
