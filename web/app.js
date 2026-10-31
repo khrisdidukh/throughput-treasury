@@ -68,7 +68,7 @@ function renderDecisions() {
   $('#decisions').innerHTML = list.map((d, i) => {
     const o = byId[d.offer_id] || {};
     const atC = o.stage === state[1]?.constraint_stage;
-    return `<article class="dec" data-i="${decisions.length - 1 - i}">
+    return `<article class="dec" data-i="${decisions.length - 1 - i}" data-offer="${esc(d.offer_id)}">
       <div class="dec-row">
         <div><h3>${esc(d.offer_id)}</h3><p class="desc">${esc(o.description)}</p>
           <div class="meta"><span class="chip ${atC ? 'drum' : ''}">${esc(o.stage)}</span> ${esc(LEVER[o.lever] || o.lever)}, vendor ${esc(d.vendor)}</div></div>
