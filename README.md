@@ -132,7 +132,7 @@ Built in the hackathon window (from 19 Oct 2026):
 - the demo page and server;
 - every on-chain decision and evidence bundle.
 
-Baseline (pre-existing, my own; the original files are kept as a separate commit, tag `pre-hackathon`, and `git diff pre-hackathon main -- engine` shows the 13 changed lines):
+Baseline (pre-existing, my own; the original files are on the branch `pre-hackathon`, and `git diff origin/pre-hackathon origin/main -- engine` shows the 13 changed lines):
 - the flow engine in `engine/` comes from *Bottleneck Economist*, my Theory of Constraints app for Jira
   (Atlassian Forge). Here it is used as a library, with small changes: ESM imports and per-offer pricing
   for the snapshot.
