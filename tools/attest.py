@@ -12,7 +12,9 @@ import asyncio, hashlib, json, os, secrets, sys, urllib.parse, urllib.request
 import dcap_qvl  # pip install dcap-qvl
 
 MODEL = sys.argv[1] if len(sys.argv) > 1 else 'Qwen/Qwen3.8-27B'
-KEY = next(l.split('=', 1)[1].strip() for l in open(os.path.join(os.path.dirname(__file__), '.env')) if l.startswith('NEARAI_API_KEY='))
+_here = os.path.dirname(os.path.abspath(__file__))
+_env = next(p for p in (os.path.join(_here, '.env'), os.path.join(_here, '..', '.env')) if os.path.exists(p))
+KEY = os.environ.get('NEARAI_API_KEY') or next(l.split('=', 1)[1].strip() for l in open(_env) if l.startswith('NEARAI_API_KEY='))
 
 
 def find(o, key):
