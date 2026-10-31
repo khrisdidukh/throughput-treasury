@@ -31,6 +31,28 @@ chain, check each proof in your browser, and pitch the CFO yourself.
 
 **Contract:** [`tt-owner-1333.testnet`](https://testnet.nearblocks.io/address/tt-owner-1333.testnet)
 
+## Try it in two minutes
+
+1. Open https://throughput-treasury.onrender.com. The first load after a quiet period takes about 40 seconds.
+   → You see where the business's lead time goes. "Open" is red: it holds 46% of lead time, so it is the
+   constraint.
+2. Under **Every decision, on-chain**, press **Check the proof** on `triage-team`.
+   → Six green checks in your browser, computed without trusting the site:
+   - the hashes match the chain;
+   - the snapshot matches;
+   - the enclave signature is valid;
+   - the key is attested;
+   - a flipped decision fails.
+
+   The CFO said FUND, and the contract says **Blocked by policy** (2× return < 3× floor).
+3. Under **Pitch the CFO**, click **A pushy contractor**, then **Send to the CFO**.
+   → In about a minute your offer appears at the top. The CFO rejects it, saying why. No NEAR moves.
+4. Click **A decision desk at Open** and send it.
+   → That one targets the constraint at a sensible price. Expect **Funded** and 0.1 test NEAR paid to the
+   vendor agent. The weekly cap stops payments after 2 NEAR.
+5. Offline: `npm install && npm test`
+   → Every bundle in `evidence/` prints `OK`, and every flipped decision is reported as rejected.
+
 ## What happened on testnet
 
 The business in the demo is an open-source database team run as an autonomous software business. Its flow
@@ -101,6 +123,28 @@ npm start
 Live reviews need a NEAR AI Cloud key in `.env` (`NEARAI_API_KEY=...`) and the agents' testnet keys
 (`TT_ACCOUNTS` JSON or `keys/tt-<role>-*.json`). Without them the page still reads the contract and verifies
 every decision.
+
+## What is new, what came before, what it uses
+
+Built in the hackathon window (from 19 Oct 2026):
+- the NEAR contract and its tests;
+- the agents (`agent/`): snapshot commitment, the TEE review pipeline, the offline verifier, vendor agents;
+- the demo page and server;
+- every on-chain decision and evidence bundle.
+
+Baseline (pre-existing, my own):
+- the flow engine in `engine/` comes from *Bottleneck Economist*, my Theory of Constraints app for Jira
+  (Atlassian Forge). Here it is used as a library, with small changes: ESM imports and per-offer pricing
+  for the snapshot.
+
+Libraries and services:
+- near-sdk 5.5 (Rust); near-api-js 7.4; tsx;
+- ed25519-dalek (tests only); `dcap-qvl` (attestation check);
+- `@noble/curves` (browser fallback for ed25519);
+- NEAR AI Cloud (`Qwen/Qwen3.8-27B` in a TEE);
+- Google Fonts (Schibsted Grotesk).
+
+Data: public Apache Cassandra Jira history. Code was written with AI assistance (Claude).
 
 ## Honest limits
 
