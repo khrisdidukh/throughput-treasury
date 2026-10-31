@@ -47,8 +47,11 @@ function renderFacts() {
 async function renderFlow() {
   const snap = state[1];
   if (!snap) return;
-  const s = await (await fetch(`/api/snapshot/${snap.sha256}`)).json().catch(() => null);
-  if (!s) return;
+  // the snapshot text lives in the contract; check it against the committed hash before showing it
+  let text = await view('get_snapshot_text').catch(() => null);
+  if (!text || (await sha(enc.encode(text))) !== snap.sha256) text = await (await fetch(`/api/snapshot/${snap.sha256}`)).text().catch(() => null);
+  if (!text) return;
+  const s = JSON.parse(text);
   const parts = s.flow.whereLeadTimeGoes;
   const c = s.constraint.stage;
   $('#flow').innerHTML = parts.map((p) => {
@@ -59,6 +62,30 @@ async function renderFlow() {
   $('#flow-src').textContent = `Lead time of delivered work, ${s.source}`;
   const k = s.flow.constraints.find((x) => x.waitIn === c) || s.flow.constraints[0];
   $('#why').innerHTML = k.evidence.slice(0, 4).map((e) => `<li>${esc(e[0].toUpperCase() + e.slice(1))}.</li>`).join('');
+  const desk = document.querySelector('.preset[data-role="desk"]');
+  if (desk) {
+    const p = JSON.parse(desk.dataset.p);
+    p.stage = c;
+    desk.dataset.p = JSON.stringify(p);
+    desk.querySelector('b').textContent = `A decision desk at ${c}`;
+  }
+}
+
+async function renderCycle() {
+  const c = await view('get_blob', { key: 'cycle' }).then((b) => (b ? JSON.parse(b) : null)).catch(() => null);
+  const live = cfg.cycle || {};
+  const box = $('#cycle');
+  if (live.running) {
+    box.innerHTML = `<p class="cycle-now"><span class="spinner"></span>The weekly cycle is running right now: ${esc(live.log.at(-1) || 'starting')}</p>`;
+    return;
+  }
+  if (!c) { box.innerHTML = ''; return; }
+  const when = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const next = new Date(Date.parse(c.started) + (live.every_days || 7) * 86_400_000);
+  const counts = {};
+  for (const r of c.reviewed) counts[r.outcome] = (counts[r.outcome] || 0) + 1;
+  const parts = Object.entries(counts).map(([k, n]) => `${n} ${(OUTCOME[k] || k).toLowerCase()}`).join(', ') || 'no open offers';
+  box.innerHTML = `<p><b>Runs by itself every week.</b> Last cycle ${when(c.started)}: pulled ${c.issues.toLocaleString('en-US')} issues from the live Jira, found the constraint at <b>${esc(c.constraint)}</b>, committed snapshot <span class="hash">${c.snapshot_sha256.slice(0, 12)}…</span> and reviewed every open offer (${esc(parts)}). Next cycle due ${when(next.toISOString())}.</p>`;
 }
 
 function renderDecisions() {
@@ -173,5 +200,5 @@ $('#offer').addEventListener('submit', async (e) => {
   cfg = await (await fetch('/api/config')).json();
   $('#stage').innerHTML = cfg.stages.map((s) => `<option>${esc(s)}</option>`).join('');
   if (!cfg.canReview) { $('#send').disabled = true; $('#live').textContent = 'Live reviews are off on this copy of the site. Every past decision is still verifiable above.'; }
-  try { await load(); await renderFlow(); } catch (e) { $('#decisions').innerHTML = `<p class="err">Could not read the contract: ${esc(e.message)}</p>`; }
+  try { await load(); await renderFlow(); renderCycle(); } catch (e) { $('#decisions').innerHTML = `<p class="err">Could not read the contract: ${esc(e.message)}</p>`; }
 })();

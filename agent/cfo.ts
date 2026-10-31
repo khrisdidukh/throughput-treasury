@@ -24,14 +24,24 @@ function scenarioFor(o: any): Scenario {
   return { label: o.id, lever: 'move', status: o.stage, addPeople: 1 };
 }
 
-/** Build the flow snapshot with the Goldratt engine, price every open offer, commit the hash on-chain. */
-export async function commitSnapshot(): Promise<{ sha256: string; constraint: string }> {
-  const report = fromFlow('Apache Cassandra', 'demo', DEMO_FLOW);
+/** The engine's latest flow: the live weekly pull kept on-chain (blob "flow"), else the bundled 2024–25 history. */
+export async function currentFlow(): Promise<{ flow: any; source: string; fetched_at?: string }> {
+  try {
+    const b = await view('get_blob', { key: 'flow' });
+    if (b) return JSON.parse(b);
+  } catch {}
+  return { flow: DEMO_FLOW, source: DEMO_SOURCE };
+}
+
+/** Build the flow snapshot with the Goldratt engine, price every open offer, commit it (text and hash) on-chain. */
+export async function commitSnapshot(summaryPrefix = ''): Promise<{ sha256: string; constraint: string }> {
+  const live = await currentFlow();
+  const report = fromFlow('Apache Cassandra', 'demo', live.flow);
   const c = report.constraints[0];
   const offers: any[] = (await view('get_offers')).filter((o: any) => o.active);
   const snapshot = {
     business: 'An open-source database team run as an autonomous software business (stand-in data: public Apache Cassandra Jira history)',
-    source: DEMO_SOURCE,
+    source: live.source,
     engine: 'Theory of Constraints flow engine (github.com/khrisdidukh/throughput-treasury/engine), deterministic, reproducible from this snapshot',
     money_assumptions: report.money,
     flow: compact(report),
@@ -53,17 +63,30 @@ export async function commitSnapshot(): Promise<{ sha256: string; constraint: st
   const h = sha(text);
   fs.mkdirSync(SNAPS, { recursive: true });
   fs.writeFileSync(path.join(SNAPS, `${h}.json`), text);
-  await call(acct('owner'), 'commit_snapshot', { sha256: h, constraint_stage: c.status, summary: `${c.type} constraint at ${c.status} (${Math.round(c.leadShare * 100)}% of lead time); ${offers.length} open offers priced` });
+  const onchain = await call(acct('owner'), 'commit_snapshot_text', {
+    text, constraint_stage: c.status,
+    summary: `${summaryPrefix}${c.type} constraint at ${c.status} (${Math.round(c.leadShare * 100)}% of lead time); ${offers.length} open offers priced`,
+  });
+  if (onchain !== h) throw new Error(`on-chain hash ${onchain} differs from local ${h}`);
   return { sha256: h, constraint: c.status };
+}
+
+/** The committed snapshot text: local copy if present, else read from the contract; always hash-checked. */
+export async function committedSnapshotText(): Promise<string> {
+  const [, snap] = await view('get_state');
+  const p = path.join(SNAPS, `${snap.sha256}.json`);
+  const text = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : await view('get_snapshot_text');
+  if (!text || sha(text) !== snap.sha256) throw new Error('snapshot text does not match the committed hash');
+  fs.mkdirSync(SNAPS, { recursive: true });
+  fs.writeFileSync(p, text);
+  return text;
 }
 
 /** Ask the private CFO (TEE) to review an offer against the committed snapshot and execute on-chain. */
 export async function reviewOffer(offerId: string) {
   const KEY = process.env.NEARAI_API_KEY;
   if (!KEY) throw new Error('NEARAI_API_KEY is not set');
-  const [, snap] = await view('get_state');
-  const snapshotText = fs.readFileSync(path.join(SNAPS, `${snap.sha256}.json`), 'utf8');
-  if (sha(snapshotText) !== snap.sha256) throw new Error('local snapshot does not match the committed hash');
+  const snapshotText = await committedSnapshotText();
   const tpl = await view('request_template', { offer_id: offerId });
   const request = Buffer.from(`${tpl.prefix},{"type":"text","text":${JSON.stringify(snapshotText)}}${tpl.suffix}`);
   const headers = { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Encoding': 'identity', 'x-no-aliasing': 'true' };

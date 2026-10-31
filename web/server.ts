@@ -4,11 +4,12 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { ROOT, commitSnapshot, reviewOffer } from '../agent/cfo.js';
+import { CYCLE_EVERY_MS, lastCycle, runCycle } from '../agent/cycle.js';
 import { NEAR, acct, call, CONTRACT } from '../agent/near.js';
 
 const PORT = Number(process.env.PORT || 8788);
 const WEB = path.join(ROOT, 'web');
-const STAGES = ['Open', 'Triage Needed', 'Patch Available', 'In Progress', 'Awaiting Feedback', 'Review In Progress'];
+const STAGES = ['Triage Needed', 'Open', 'Patch Available', 'In Progress', 'Awaiting Feedback', 'Review In Progress'];
 const VENDOR: Record<string, string> = { automate: 'vendor-review', hire: 'vendor-dev', move: 'vendor-dev', policy: 'vendor-triage' };
 const canReview = (() => { try { acct('owner'); return !!process.env.NEARAI_API_KEY; } catch { return false; } })();
 
@@ -17,6 +18,27 @@ const jobs = new Map<string, Job>();
 let running = false;
 let today = { day: new Date().toISOString().slice(0, 10), n: 0 };
 const DAILY_LIMIT = Number(process.env.DAILY_REVIEWS || 30);
+let cycleState: { running: boolean; log: string[]; error?: string } = { running: false, log: [] };
+
+/** The autonomous weekly cycle: runs by itself whenever the last one is a week old (checked at start and hourly). */
+async function maybeCycle() {
+  if (!canReview || running || cycleState.running) return;
+  const last = await lastCycle();
+  if (last && Date.now() - Date.parse(last.started) < CYCLE_EVERY_MS) return;
+  running = true;
+  cycleState = { running: true, log: [] };
+  try {
+    await runCycle((l) => { cycleState.log.push(`${new Date().toISOString().slice(11, 19)} ${l}`); console.log('[cycle]', l); });
+  } catch (e: any) {
+    cycleState.error = String(e?.message || e).slice(0, 300);
+    console.log('[cycle] failed', cycleState.error);
+  } finally {
+    cycleState.running = false;
+    running = false;
+  }
+}
+setTimeout(maybeCycle, 20_000);
+setInterval(maybeCycle, 3_600_000);
 
 async function run(job: Job, o: { stage: string; lever: string; description: string; price_eur_per_week: number }) {
   running = true;
@@ -49,7 +71,7 @@ const safe = (s: string) => /^[a-z0-9-]{1,64}$/.test(s);
 http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x');
   const p = url.pathname;
-  if (p === '/api/config') return send(res, 200, JSON.stringify({ contract: CONTRACT, rpc: 'https://rpc.testnet.fastnear.com', canReview, stages: STAGES, busy: running }));
+  if (p === '/api/config') return send(res, 200, JSON.stringify({ contract: CONTRACT, rpc: 'https://rpc.testnet.fastnear.com', canReview, stages: STAGES, busy: running, cycle: { running: cycleState.running, log: cycleState.log.slice(-6), error: cycleState.error, every_days: CYCLE_EVERY_MS / 86_400_000 } }));
   let m = p.match(/^\/api\/evidence\/([a-z0-9-]+)\/(request|response|signature)\.json$/);
   if (m && safe(m[1])) return file(res, path.join(ROOT, 'evidence', m[1], `${m[2]}.json`));
   m = p.match(/^\/api\/snapshot\/([0-9a-f]{64})$/);
@@ -58,6 +80,7 @@ http.createServer(async (req, res) => {
   if (m) return jobs.has(m[1]) ? send(res, 200, JSON.stringify(jobs.get(m[1]))) : send(res, 404, '{"error":"no such job"}');
   if (p === '/api/offer' && req.method === 'POST') {
     if (!canReview) return send(res, 503, '{"error":"Live reviews are off on this server: it has no NEAR AI key or no agent keys."}');
+    if (cycleState.running) return send(res, 429, '{"error":"The treasury is running its weekly cycle (fresh Jira data, new snapshot, reviews). Try again in a few minutes."}');
     if (running) return send(res, 429, '{"error":"The CFO is reviewing another offer. Try again in a minute."}');
     const d = new Date().toISOString().slice(0, 10);
     if (today.day !== d) today = { day: d, n: 0 };

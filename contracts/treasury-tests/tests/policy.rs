@@ -188,3 +188,26 @@ fn weekly_cap_holds() {
     assert_eq!(d.outcome, "BLOCKED_BY_POLICY");
     assert!(d.reason.contains("weekly spending cap"));
 }
+
+#[test]
+fn snapshot_text_is_hashed_and_kept_on_chain() {
+    ctx(0, 0);
+    let mut c = Contract::new(accounts(0), MODEL.into(), 300, U128(NearToken::from_near(5).as_yoctonear()));
+    c.register_signer(signer(), "q".into());
+    let h = c.commit_snapshot_text(SNAP.into(), "Open".into(), "s".into());
+    assert_eq!(h, sha(SNAP.as_bytes()));
+    assert_eq!(c.get_snapshot_text().as_deref(), Some(SNAP));
+    ctx(1, 0);
+    c.post_offer("triage".into(), "Open".into(), "policy".into(), "t".into(), 400, U128(NearToken::from_near(1).as_yoctonear()));
+    ctx(3, 0);
+    let d = exec_r(&mut c, "triage", |c| review(c, "triage", &fund("triage", "Open", 900_000), SNAP, ""));
+    assert_eq!(d.outcome, "FUNDED");
+}
+
+#[test]
+#[should_panic(expected = "constraint_stage differs")]
+fn snapshot_text_must_match_its_constraint() {
+    ctx(0, 0);
+    let mut c = Contract::new(accounts(0), MODEL.into(), 300, U128(NearToken::from_near(5).as_yoctonear()));
+    c.commit_snapshot_text(SNAP.into(), "Review In Progress".into(), "s".into());
+}

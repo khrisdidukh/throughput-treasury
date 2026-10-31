@@ -234,6 +234,29 @@ impl Contract {
         self.snapshot = Some(Snapshot { sha256, constraint_stage, summary: summary.chars().take(500).collect(), committed_at: env::block_timestamp() });
     }
 
+    /// Commit a snapshot by its full text: the hash is computed on-chain and the text is kept in contract
+    /// storage, so anyone can read exactly what the CFO will see (get_snapshot_text) and re-run the engine.
+    pub fn commit_snapshot_text(&mut self, text: String, constraint_stage: String, summary: String) -> String {
+        self.only_owner();
+        require!(text.len() <= 32_768, "snapshot too large");
+        let engine: EngineSnapshot = serde_json::from_str(&text).unwrap_or_else(|_| env::panic_str("snapshot is not valid engine JSON"));
+        if let Some(ec) = &engine.constraint {
+            require!(ec.stage == constraint_stage, "constraint_stage differs from the snapshot's constraint");
+        }
+        let sha256 = hex::encode(env::sha256(text.as_bytes()));
+        env::storage_write(b"blob:snapshot", text.as_bytes());
+        self.snapshot = Some(Snapshot { sha256: sha256.clone(), constraint_stage, summary: summary.chars().take(500).collect(), committed_at: env::block_timestamp() });
+        sha256
+    }
+
+    /// Owner-kept public data for the business's agents (e.g. the latest engine flow), readable by anyone.
+    pub fn store_blob(&mut self, key: String, value: String) {
+        self.only_owner();
+        require!(key.len() <= 32 && key != "snapshot", "bad key");
+        require!(value.len() <= 32_768, "value too large");
+        env::storage_write(format!("blob:{key}").as_bytes(), value.as_bytes());
+    }
+
     /// Fund the treasury.
     #[payable]
     pub fn deposit(&mut self) {}
@@ -370,6 +393,13 @@ impl Contract {
     }
     pub fn get_decisions(&self) -> Vec<Decision> {
         self.decisions.clone()
+    }
+    /// The full text of the committed snapshot (its sha256 is get_state().1.sha256).
+    pub fn get_snapshot_text(&self) -> Option<String> {
+        env::storage_read(b"blob:snapshot").map(|v| String::from_utf8(v).unwrap_or_default())
+    }
+    pub fn get_blob(&self, key: String) -> Option<String> {
+        env::storage_read(format!("blob:{key}").as_bytes()).map(|v| String::from_utf8(v).unwrap_or_default())
     }
     pub fn signer_quote(&self, signer_hex: String) -> Option<String> {
         self.signers.get(&signer_hex).cloned()
