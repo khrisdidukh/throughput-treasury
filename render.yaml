@@ -1,0 +1,16 @@
+# One-click deploy of the demo (web page + live CFO reviews) on Render.
+services:
+  - type: web
+    name: throughput-treasury
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npx tsx web/server.ts
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEARAI_API_KEY
+        sync: false
+      - key: TT_ACCOUNTS
+        sync: false

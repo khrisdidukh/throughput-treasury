@@ -1,0 +1,13 @@
+[package]
+name = "treasury-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+throughput-treasury = { path = "../treasury" }
+near-sdk = { version = "=5.5.0", features = ["unit-testing"] }
+ed25519-dalek = "2"
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"

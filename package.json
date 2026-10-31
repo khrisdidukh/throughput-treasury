@@ -1,0 +1,13 @@
+{
+  "name": "throughput-treasury",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Autonomous-business treasury that only spends where it raises throughput (Theory of Constraints), with TEE-signed CFO reviews verified on NEAR",
+  "scripts": {
+    "snapshot": "tsx agent/snapshot.ts",
+    "test": "tsx agent/verify.ts evidence/*/",
+    "start": "tsx web/server.ts"
+  },
+  "dependencies": { "near-api-js": "7.4.0", "tsx": "^4.19.2" }
+}
