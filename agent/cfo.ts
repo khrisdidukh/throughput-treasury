@@ -90,10 +90,15 @@ export async function reviewOffer(offerId: string) {
   const tpl = await view('request_template', { offer_id: offerId });
   const request = Buffer.from(`${tpl.prefix},{"type":"text","text":${JSON.stringify(snapshotText)}}${tpl.suffix}`);
   const headers = { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Encoding': 'identity', 'x-no-aliasing': 'true' };
-  const res = await fetch(`${API}/chat/completions`, { method: 'POST', headers, body: request });
-  const response = Buffer.from(await res.arrayBuffer());
-  if (!res.ok) throw new Error(`NEAR AI ${res.status}: ${response.toString().slice(0, 300)}`);
-  if (!JSON.parse(response.toString()).choices?.[0]?.message?.content) throw new Error('the CFO model returned no answer (token budget); try again');
+  // a reasoning model occasionally spends its whole token budget thinking and returns no answer: ask again
+  let response!: Buffer;
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`${API}/chat/completions`, { method: 'POST', headers, body: request });
+    response = Buffer.from(await res.arrayBuffer());
+    if (!res.ok) throw new Error(`NEAR AI ${res.status}: ${response.toString().slice(0, 300)}`);
+    const content: string = JSON.parse(response.toString()).choices?.[0]?.message?.content || '';
+    try { JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)); break; } catch { if (attempt >= 3) throw new Error('the CFO returned no answer three times; try again'); }
+  }
   let signature: any;
   for (let i = 0; i < 15 && !signature; i++) {
     const r = await fetch(`${API}/signature/${JSON.parse(response.toString()).id}?signing_algo=ed25519`, { headers });
