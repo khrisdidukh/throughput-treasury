@@ -32,6 +32,8 @@ independent layers agree:
 **Live demo:** https://throughput-treasury.onrender.com. You can read every decision straight from the
 chain, check each proof in your browser, and pitch the CFO yourself.
 
+**Demo video (1:25):** https://youtu.be/TpaGrtZDfys
+
 **Contract:** [`tt-owner-1333.testnet`](https://testnet.nearblocks.io/address/tt-owner-1333.testnet)
 
 ## Try it in two minutes
